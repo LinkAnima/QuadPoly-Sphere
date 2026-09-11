@@ -1,157 +1,118 @@
-# Quad Poly Sphere Generator: User Guide & Best Practices
+# Quad Poly Sphere Generator: User Guide
 
-## What This Tool Does
+## Overview
+The **Quad Poly Sphere Generator** is a tool for creating high-quality proxy spheres in Maya. It builds a sphere from a simple cube, applies subdivision smoothing, and handles UVs and naming automatically.
 
-The **Quad Poly Sphere Generator** is a Maya script tool that creates a clean, UV-mapped, quad-based sphere from a simple cube. It’s designed for artists who need a quick, predictable poly-sphere with proper UVs—without manually unwrapping, subdividing, and renaming every time.
-
-Instead of the typical 10-step manual workflow (cube → auto-project → layout → smooth → freeze → delete history → rename…), this tool handles it all in one click with a simple UI.
+It is ideal for:
+*   Creating collision proxies for characters.
+*   Generating base meshes for sculpting or detailing.
+*   Quick iteration on spherical geometry.
 
 ---
 
-## The Interface
+## The Workflow
+When you click **Generate**, the tool performs the following steps in this specific order:
 
-When you run the tool, a small window appears with three sections:
+1.  **Creates a Cube:** Starts with a standard 1x1x1 cube.
+2.  **Unwraps UVs:** Projects UVs onto the cube *before* it changes shape. This ensures clean UV layouts.
+3.  **Subdivides:** Smooths the cube into a sphere shape based on your level preference.
+4.  **Triangulates (Optional):** Converts quads to triangles if enabled.
+5.  **Hardens Edges (Optional):** Makes all edges sharp if enabled.
+6.  **Finalizes:** Scales to 2 units, freezes transforms, deletes history, and renames the object.
 
-### 1. Geometry
-- **Subdivision Level**: How many times to smooth the cube into a sphere.  
-  - `1` = 24 faces (a bit blocky)  
-  - `2` = 96 faces (good for proxies)  
-  - `3` = 384 faces (smoother)  
-  - `4+` = Getting heavy (1,536+ faces)  
-  - *Max is capped at 6 to avoid accidental memory explosions.*
-- **Triangulate Mesh**: Converts all quads to triangles. Use this if your pipeline or renderer prefers tris, or if you’re exporting to a game engine.
-- **Apply Hard Edge**: Makes all edges hard, giving the sphere a faceted, low-poly look. **Warning:** This will make a smooth-looking sphere look angular. Only use this if you actually want that aesthetic.
+---
+
+## Feature Breakdown
+
+### 1. Geometry Settings
+These controls determine the shape and density of the mesh.
+
+*   **Subdivision Level (1–6):**
+    *   Controls how "smooth" the sphere is.
+    *   **Level 1–2:** Low poly. Good for distant collision or quick previews.
+    *   **Level 3–4:** Medium poly. Good general-purpose proxy.
+    *   **Level 5–6:** High poly. Very smooth, but heavier on your computer.
+    *   *Best Practice:* Start with **Level 2 or 3**. You can always subdivide more later in the viewport if needed.
+
+*   **Triangulate Mesh:**
+    *   If checked, all quads (4-sided faces) are converted to triangles (3-sided faces).
+    *   *When to use:* Useful if you are exporting to game engines that require triangles, or if you plan to boolean-cut the sphere.
+    *   *Warning:* Triangulating *before* subdividing is not possible; this happens after the sphere shape is formed.
+
+*   **Apply Hard Edge:**
+    *   If checked, the mesh will look **faceted** (like a gemstone or low-poly art style) instead of smooth.
+    *   *When to use:* For stylized 3D art where you want visible facets.
+    *   *Warning:* Do **not** use this if you want a smooth, organic sphere. A subdivided cube with hard edges looks like a ball of triangles.
 
 ### 2. UV Settings
-- **Pack UV Shells**:  
-  - **Checked (default)**: UVs are packed neatly into the 0–1 UV space. This is what you want 95% of the time.
-  - **Unchecked**: UVs are left as Maya’s auto-projection left them. Shells may overlap or fall outside the 0–1 space. Only disable this if you have a specific reason (e.g., you’re doing manual UV stacking later).
-- **UV Set Name**: The name of the UV set to create. Default is `uvSet1`. You can change it if your project uses a different naming convention (e.g., `uv_main`, `uv_atlas`).
+These controls determine how the texture mapping is laid out.
+
+*   **Pack UV Shells:**
+    *   **Checked (Default):** The UV islands are packed tightly into the 0-1 texture space. This is best for **baking textures** or using standard PBR workflows where you want to use as much texture resolution as possible.
+    *   **Unchecked:** The UVs are left in their projected positions. They may overlap or stack on top of each other.
+    *   *When to use:* Rarely needed for a sphere. Usually, you want packing ON. Only uncheck this if you are using a specific workflow that relies on stacked UVs (e.g., certain multi-material setups).
+
+*   **UV Set Name:**
+    *   The name of the UV channel created on the mesh (e.g., `uvSet1`).
+    *   *Best Practice:* Keep the default `uvSet1` unless you have a specific reason to name it differently (e.g., `proxyUv` or `collisionUv`).
 
 ### 3. Naming
-- **Prefix**: The base name for the object. Default is `qPolySphere`.  
-  - The tool will automatically find the next available number.  
-  - If `qPolySphere1` already exists, it will create `qPolySphere2`.  
-  - Change this if you want a different naming convention (e.g., `sphere_`, `ball_`).
-
-### The Button
-- **Generate**: Click this to run the entire pipeline. You’ll see a confirmation in the Script Editor and viewport when it’s done.
+*   **Prefix:**
+    *   The base name of the object.
+    *   The tool automatically adds a number to ensure uniqueness.
+    *   *Example:* If you name the prefix `qPolySphere` and you already have `qPolySphere1` in your scene, the new object will be named `qPolySphere2`.
+    *   *Best Practice:* Use a consistent prefix like `qPolySphere`, `proxySphere`, or `colSphere` to keep your scene organized.
 
 ---
 
-## The Workflow (What Happens Under the Hood)
+## Best Practices & Tips
 
-For transparency, here’s the exact order of operations:
+### 1. The "Hard Edge" Trap
+**This is the most common mistake.**
+If you check **"Apply Hard Edge"**, your smooth sphere will immediately look like a faceted gem.
+*   **Want a smooth sphere?** Leave Hard Edge **OFF**.
+*   **Want a stylized low-poly look?** Turn Hard Edge **ON**, but consider using a lower subdivision level (1 or 2) for a cleaner faceted look.
 
-1. **Create** a 1x1x1 poly cube.
-2. **Auto-Project UVs** onto the cube (using the UV set you specified).
-3. **Pack UVs** (if “Pack UV Shells” is checked).
-4. **Subdivide** the cube the number of times you specified (UVs subdivide with the geometry).
-5. **Triangulate** (if checked).
-6. **Apply Hard Edges** (if checked, using a 0° smoothing angle).
-7. **Scale** the result so its largest dimension is exactly 2.0 units.
-8. **Freeze Transformations** (sets position/rotation/scale to 0/0/1).
-9. **Delete Construction History** (bakes the mesh, removing all nodes).
-10. **Rename** the transform and shape nodes with the appropriate numbering.
-11. **Select** the result.
+### 2. Performance
+*   **Subdivision Level 6** creates a mesh with over **200,000 faces**.
+*   If your scene becomes slow, lower the subdivision level. You can always select the sphere in the viewport and press `1` (Object mode) to see the low-poly wireframe, or use `Ctrl+1` to switch to wireframe shading to improve viewport performance.
 
-Everything is wrapped in a single undo chunk, so if you don’t like the result, **Ctrl+Z** will cleanly remove it.
+### 3. Scaling
+The tool automatically scales the sphere so its largest dimension is **2 units**.
+*   This means the sphere will fit inside a box that is 2x2x2 units.
+*   If you need a different size, **do not scale the object manually** before using the tool. Let the tool scale it to 2, then scale it down or up as needed after generation.
 
----
+### 4. UVs for Baking
+*   Always ensure **Pack UV Shells** is **checked** if you plan to bake ambient occlusion, normal maps, or other maps onto this sphere.
+*   If you uncheck packing, your UVs may overlap, causing "leaking" or corrupted bakes.
 
-## Best Practices
-
-### Subdivision Level
-- **Level 1–2**: Great for proxies, planning shots, or low-poly assets.
-- **Level 3**: A good general-purpose sphere.
-- **Level 4+**: Use with caution. Level 6 is ~100,000 faces. That’s fine for a single object, but generating 10 of them will slow your scene down.
-- **Rule of thumb**: Start with 2. If it’s too blocky for your needs, bump it up. Don’t start at 6.
-
-### Triangulate
-- **Leave unchecked** if you’re staying in Maya and working with quads. Quads are easier to subdivide and edit.
-- **Check it** if you’re exporting to a game engine, Unreal, Unity, or any DCC that handles tris better.
-- **Note:** Triangulating after subdivision is fine. The UVs will remain valid.
-
-### Hard Edges
-- **Leave unchecked** for 99% of use cases. A smooth sphere should have soft edges.
-- **Check it** only if you want a deliberate low-poly, faceted aesthetic (think: retro game style, certain stylized looks).
-- **Warning:** Hard edges on a high-subdivision sphere will make it look like a geodesic dome. Make sure that’s what you want.
-
-### UV Packing
-- **Keep it checked** unless you have a specific reason not to.
-- Unpacked UVs (from auto-projection only) will have shells scattered across the UV space, possibly overlapping or extending beyond 0–1. This is rarely what you want.
-- If you’re using this sphere as a source for procedural texturing or baking, packed UVs are almost always preferable.
-
-### Naming
-- Use a consistent prefix that matches your project’s naming conventions.
-- The tool is smart about numbering, so you can safely run it multiple times without worrying about name conflicts.
-- If you’re generating many spheres in a batch, consider using a prefix that includes a scene or asset code (e.g., `scene1_sphere`, `asset_ball`).
+### 5. Triangulation for Games
+*   If you are using this as a **collision proxy** for a game engine:
+    1.  Set Subdivision to **1 or 2** (keep it lightweight).
+    2.  Check **Triangulate Mesh** (most engines prefer triangles).
+    3.  Leave **Hard Edge** OFF (collision proxies should be smooth).
+    4.  Check **Pack UV Shells** (in case you need a texture later).
 
 ---
 
 ## Troubleshooting
 
-### “Generation Failed” Error
-- Check the Script Editor (Window → General Editors → Script Editor). The error message will tell you exactly which step failed and why.
-- Most common causes:
-  - The scene is locked or read-only.
-  - You’re trying to create a UV set that doesn’t meet Maya’s naming requirements (no spaces, no special characters).
-  - You don’t have enough memory for the subdivision level you chose.
-
-### The Sphere Looks Faceted
-- You likely checked **Apply Hard Edge**. Uncheck it and regenerate.
-
-### The UVs Look Messy or Overlapping
-- You likely unchecked **Pack UV Shells**. Re-check it and regenerate.
-- If you *want* overlapping shells, that’s intentional. But for most workflows, you want packed UVs.
-
-### The Object Is Too Big or Too Small
-- The tool always scales the result to a 2.0 unit bounding box. If that’s not what you want, manually scale the object after generation. This is by design—consistent sizing makes it easier to work with in a scene.
-
-### I Want to Undo
-- **Ctrl+Z** will undo the entire generation in one step. This is reliable because the tool uses a single undo chunk.
+| Problem | Likely Cause | Solution |
+| :--- | :--- | :--- |
+| **Sphere looks faceted/sharp** | "Apply Hard Edge" is checked. | Uncheck "Apply Hard Edge" and regenerate. |
+| **Viewport is laggy** | Subdivision level is too high (5 or 6). | Reduce to level 2 or 3. Or press `W` to cycle shading to Wireframe. |
+| **UVs look messy/overlapping** | "Pack UV Shells" is unchecked. | Check "Pack UV Shells" and regenerate. |
+| **Object name is wrong** | You used a custom prefix. | Check the "Prefix" field. The tool appends a number automatically (e.g., `prefix1`). |
+| **Nothing happens on click** | Check the Script Editor (Maya). | Look for red error messages in the Maya Script Editor window (Window > General Editors > Script Editor). |
 
 ---
 
-## Where to Place This in Your Scene
+## Quick Start Checklist
 
-The generated sphere is a **quads-based poly mesh** with:
-- Clean, predictable UVs (packed into 0–1).
-- No construction history (it’s a “baked” mesh).
-- Frozen transformations (origin at 0,0,0).
-
-This makes it ideal for:
-- **Proxies** in animation or layout.
-- **Base meshes** for sculpts or further modeling.
-- **Export targets** for game pipelines (if triangulated).
-- **Procedural source** for texturing or baking.
-
-It’s **not** ideal for:
-- High-end production renders where you need perfect topology (a true sphere has better UVs and edge flow).
-- Situations where you need NURBS-based spherical geometry.
-
----
-
-## Installation
-
-1. Save the script as `quad_poly_sphere_generator.py` in your Maya `scripts` folder (e.g., `C:\Users\<you>\maya\<version>\scripts\` on Windows, or `~/maya/<version>/scripts/` on Mac/Linux).
-2. Restart Maya.
-3. To run:
-   - Open the **Script Editor** (Window → General Editors → Script Editor).
-   - Paste the following and hit **Run**:
-     ```python
-     import quad_poly_sphere_generator
-     tool = quad_poly_sphere_generator.QuadPolySphereGenerator()
-     tool.build_ui()
-     ```
-4. Or, add a button to your shelf that calls the same code.
-
----
-
-## A Note on Design Decisions
-
-- **Why start from a cube?** It gives you perfectly even quad topology and predictable UV shells. A native poly sphere in Maya has poles and uneven topology, which is harder to UV.
-- **Why UV before subdivision?** UVs need to be on a simple topology to project cleanly. Once you subdivide, the UVs follow the geometry, so you get a full set of UVs on the high-poly result.
-- **Why scale to 2.0?** It’s a consistent, scene-friendly size. You can always scale it later, but starting with a known size makes composition easier.
-
-This tool is a **starting point**, not a replacement for proper UV unwrapping or modeling. If you need a specific UV layout or edge flow, model it manually. But for quick spheres with clean UVs, it’s a huge time-saver.
+1.  Open the tool: **Window > Custom > Quad Poly Sphere Generator** (or however you loaded it).
+2.  Set **Subdivision Level** to **2** (for a standard smooth sphere).
+3.  Leave **Triangulate** and **Hard Edge** **OFF**.
+4.  Leave **Pack UV Shells** **ON**.
+5.  Set **Prefix** to your preferred name (e.g., `qPolySphere`).
+6.  Click **Generate**.
+7.  Your new sphere will appear in the scene, selected and ready to use.
